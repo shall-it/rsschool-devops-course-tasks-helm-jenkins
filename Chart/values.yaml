@@ -1,0 +1,10 @@
+image:
+  repository: 035511759406.dkr.ecr.us-east-1.amazonaws.com/wordcloudgen
+  tag: "1.0"
+  pullPolicy: IfNotPresent
+deployment:
+  port: 8888
+  replicas: 1
+service:
+  type: LoadBalancer
+  port: 80
