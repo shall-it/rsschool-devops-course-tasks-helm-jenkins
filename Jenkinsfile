@@ -66,12 +66,26 @@ pipeline {
                 }
             }
         }
+        stage('Manual Trigger') {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    script {
+                        def userInput = input(
+                            message: 'Approve to proceed?',
+                            ok: 'Yes, go ahead!',
+                            submitterParameter: 'APPROVER',
+                            parameters: []
+                        )
+                    }
+                }
+            }
+        }
         stage('Build Docker Image with Buildah') {
             steps {
                 container('buildah') {
                     sh '''
-                    echo 'FROM alpine:latest\nRUN apk add --no-cache curl\nCMD ["curl", "--version"]' > Dockerfile
-                    buildah bud -t myapp:latest .
+                    buildah bud -t wordcloudgen:1.0 -f https://raw.githubusercontent.com/shall-it/rsschool-devops-course-tasks-helm-jenkins/task_6/Dockerfile .
+                    buildah tag localhost/wordcloudgen:1.0 035511759406.dkr.ecr.us-east-1.amazonaws.com/wordcloudgen:1.0
                     buildah images
                     '''
                 }
