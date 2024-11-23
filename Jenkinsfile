@@ -1,6 +1,8 @@
 pipeline {
     environment {
         KUBECONFIG = credentials('KUBECONFIG')
+        AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
     }
     agent {
         kubernetes {
@@ -87,111 +89,46 @@ pipeline {
                     buildah bud -t wordcloudgen:1.0 -f https://raw.githubusercontent.com/shall-it/rsschool-devops-course-tasks-helm-jenkins/task_6/Dockerfile .
                     buildah tag localhost/wordcloudgen:1.0 035511759406.dkr.ecr.us-east-1.amazonaws.com/wordcloudgen:1.0
                     buildah images
+                    dnf install -y curl unzip
+                    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                    unzip awscliv2.zip
+                    ./aws/install
+                    aws --version
+                    export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                    export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                    aws ecr get-login-password --region us-east-1 | buildah login --username AWS --password-stdin 035511759406.dkr.ecr.us-east-1.amazonaws.com
+                    buildah push 035511759406.dkr.ecr.us-east-1.amazonaws.com/wordcloudgen:1.0
+                    buildah rmi localhost/wordcloudgen:1.0 035511759406.dkr.ecr.us-east-1.amazonaws.com/wordcloudgen:1.0 docker.io/library/golang:1.23-alpine
                     '''
                 }
             }
+            post {
+                failure {
+                    error 'Build Docker Image stage failed, Deployment to K8s cluster with Helm cannot be executed until fixing'
+                }
+            }
         }
-        // stage('Local SonarQube Scan') {
-        //     steps {
-        //         container('sonar') {
-        //             sh '''
-        //             sleep 60
-        //             sonar-scanner \
-        //               -Dsonar.projectKey=wordcloudgen \
-        //               -Dsonar.sources=./word-cloud-generator \
-        //               -Dsonar.host.url=http://sonarqube:9000 \
-        //               -Dsonar.login=admin \
-        //               -Dsonar.password=admin \
-        //               -Dsonar.inclusions="**/*.go,**/*.html,**/*.css,**/*.sh,**/*.mk,**/Dockerfile" \
-        //               -Dsonar.exclusions="**/*.min.css,**/*test*" \
-        //               -Dsonar.go.coverage.reportPaths="coverage.out" \
-        //               -Dsonar.sourceEncoding=UTF-8
-        //             '''
-        //         }
-        //     }
-        // }
-        // stage('Check OS') { 
-        //     steps { 
-        //         script { 
-        //             sh '''
-        //             cat /etc/os-release
-        //             apt update
-        //             apt install -y unzip
-        //             curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-        //             unzip awscliv2.zip
-        //             ./aws/install
-        //             aws --version
-        //             // aws sts get-caller-identity
-        //             '''
-        //         }
-        //     }
-        // }
-        // stage('Push to ECR') {
-        //     steps {
-        //         container('buildah') { 
-        //             sh '''
-        //             dnf install -y curl unzip
-        //             curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-        //             unzip awscliv2.zip
-        //             ./aws/install
-        //             aws --version
-        //             // aws sts get-caller-identity
-        //             buildah images
-        //             '''
-        //         }
-        //     }
-        // }
+        stage('Deployment to K8s cluster with Helm') {
+            steps {
+                container('buildah') {
+                    withCredentials([file(credentialsId: 'KUBECONFIG', variable: 'KUBECONFIG')]) {
+                        sh '''
+                        dnf install -y helm kubectl git
+                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                        aws ecr get-login-password --region us-east-1 | buildah login --username AWS --password-stdin 035511759406.dkr.ecr.us-east-1.amazonaws.com
+                        rm -rf ~/.kube/*
+                        mkdir -p ~/.kube
+                        cat $KUBECONFIG > ~/.kube/config
+                        kubectl get nodes
+                        git clone https://github.com/shall-it/rsschool-devops-course-tasks-helm-jenkins.git
+                        cd rsschool-devops-course-tasks-helm-jenkins
+                        git checkout task_6
+                        helm install wordcloudgen ./Chart --namespace default
+                        helm list --namespace default
+                    '''}
+                }
+            }
+        }
     }    
 }
-
-
-// pipeline {
-//     agent { label 'built-in' }
-//     environment {
-//         KUBECONFIG = credentials('KUBECONFIG')
-//     }
-//     stages {
-//         stage('Install kubectl') { 
-//             steps { 
-//                 script { 
-//                     sh '''
-//                     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-//                     chmod +x kubectl
-//                     mv kubectl /usr/local/bin/
-//                     '''
-//                 }
-//             }
-//         }
-//         stage('Install docker') { 
-//             steps { 
-//                 script { 
-//                     sh '''
-//                     apt-get update
-//                     apt-get install -y ca-certificates curl
-//                     install -m 0755 -d /etc/apt/keyrings
-//                     curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-//                     chmod a+r /etc/apt/keyrings/docker.asc
-//                     echo \
-//                         "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu bullseye stable" | \
-//                         tee /etc/apt/sources.list.d/docker.list
-//                     apt-get update
-//                     apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-//                     '''
-//                 }
-//             }
-//         }
-//         stage('Configure Kubernetes CLI') {
-//             steps {
-//                 script {
-//                     sh '''
-//                     rm -rf /root/.kube/*'
-//                     mkdir -p /root/.kube'
-//                     echo "$KUBECONFIG" > /root/.kube/config'
-//                     kubectl get nodes
-//                     docker pull 035511759406.dkr.ecr.us-east-1.amazonaws.com/wordcloudgen:1.0
-//                     '''
-//                 }
-//             }
-//         }
-//     }
-// }
