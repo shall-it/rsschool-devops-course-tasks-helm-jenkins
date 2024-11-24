@@ -63,8 +63,8 @@ pipeline {
                     apt install -y curl jq
                     ./word-cloud-generator/word-cloud-generator &
 	                sleep 5
-	                expected_output='{"a": 1,"important": 1,"is": 2,"really": 3,"thing": 1,"this": 1,"ths": 1}'
-	                output=$(curl -H "Content-Type: application/json" -d '{"text":"ths is a really really really important thing this is"}' http://localhost:8888/api)
+	                expected_output='{"i": 1,"love": 1,"jenkins": 1,"very": 2,"much": 1}'
+	                output=$(curl -H "Content-Type: application/json" -d '{"text":"I love Jenkins very very much"}' http://localhost:8888/api)
 	                clean_output=$(echo $output | jq -c .)
 	                if echo "$expected_output" | jq --argjson exp "$clean_output" -e 'select(. == $exp)' > /dev/null; then
                         echo "Unit test passed!"
