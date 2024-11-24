@@ -55,14 +55,26 @@ pipeline {
                 }
             }
         }
-        stage('Unit test') {
+        stage('Unit testing and Application Verification') {
             steps {
                 container('tester') {
                     sh '''
                     apt update
-                    apt install -y curl
+                    apt install -y curl jq
                     ./word-cloud-generator/word-cloud-generator &
 	                sleep 5
+	                expected_output='{"a": 1,"important": 1,"is": 2,"really": 3,"thing": 1,"this": 1,"ths": 1}'
+	                output=$(curl -H "Content-Type: application/json" -d '{"text":"ths is a really really really important thing this is"}' http://localhost:8888/api)
+	                clean_output=$(echo $output | jq -c .)
+	                if echo "$expected_output" | jq --argjson exp "$clean_output" -e 'select(. == $exp)' > /dev/null; then
+                        echo "Unit test passed!"
+                    else
+	                    echo "Unit test failed!"
+	                    echo "Expected: $expected_output"
+	                    echo "Got: $output"
+	                    exit 1
+                    fi
+	                echo "Application Verification:"
                     curl -H "Content-Type: application/json" -d '{"text":"ths is a really really really important thing this is"}' http://localhost:8888/api
                     '''
                 }
