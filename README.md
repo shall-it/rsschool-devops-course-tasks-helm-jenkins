@@ -16,3 +16,6 @@ To push it to AWS ECR:
 3. Log in to AWS ECR by `aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 035511759406.dkr.ecr.us-east-1.amazonaws.com` command
 4. Push respective image to AWS ECR repository by `docker push 035511759406.dkr.ecr.us-east-1.amazonaws.com/wordcloudgen:1.0` command
 5. In case you need to pull uploaded image to local from AWS ECR repository use `docker pull 035511759406.dkr.ecr.us-east-1.amazonaws.com/wordcloudgen:1.0` command
+
+All these steps are automated with Jenkins pipeline and allow you to deploy WordCloudGen application to K8s cluster by Helm with execution of all required steps before.
+Important notice! Please do not forget to setup Jenkins credentials which used in main job as environment variables

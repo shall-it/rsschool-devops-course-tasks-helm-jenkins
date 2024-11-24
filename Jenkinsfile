@@ -142,5 +142,21 @@ pipeline {
                 }
             }
         }
+    }
+    post {
+        success {
+            emailext (
+                subject: "✅ Build successful for ${JOB_NAME}",
+                body: "Build #${BUILD_NUMBER} completed successfully\nDetails: ${BUILD_URL}",
+                to: "awsdevrss@gmail.com"
+            )
+        }
+        failure {
+            emailext (
+                subject: "❌ Build failed for ${JOB_NAME}",
+                body: "Build #${BUILD_NUMBER} completed with error(s)\nDetails: ${BUILD_URL}",
+                to: "awsdevrss@gmail.com"
+            )
+        }
     }    
 }
