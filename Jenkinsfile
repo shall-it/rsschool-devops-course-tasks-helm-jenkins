@@ -3,6 +3,7 @@ pipeline {
         KUBECONFIG = credentials('KUBECONFIG')
         AWS_ACCESS_KEY_ID = credentials('AWS_ACCESS_KEY_ID')
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
+        SONARQUBE_TOKEN = credentials('SONARQUBE_TOKEN')
     }
     agent {
         kubernetes {
@@ -28,10 +29,6 @@ pipeline {
                     command:
                     - cat
                     tty: true
-                  - name: sonarqube
-                    image: sonarqube:9.9-community
-                    ports:
-                    - containerPort: 9000
                   - name: sonar
                     image: sonarsource/sonar-scanner-cli:5.0
                     command:
@@ -76,6 +73,21 @@ pipeline {
                     fi
 	                echo "Application Verification:"
                     curl -H "Content-Type: application/json" -d '{"text":"ths is a really really really important thing this is"}' http://localhost:8888/api
+                    '''
+                }
+            }
+        }
+        stage('SonarQube Scan') {
+            steps {
+                container('sonar') {
+                    sh '''
+                    sonar-scanner \
+                      -Dsonar.projectKey=wordcloudgen \
+                      -Dsonar.sources=./word-cloud-generator \
+                      -Dsonar.host.url=https://sonarcloud.io \
+                      -Dsonar.token=$SONARQUBE_TOKEN \
+                      -Dsonar.organization=cloudinsideout \
+                      -Dsonar.exclusions=**/word-cloud-generator/static/**
                     '''
                 }
             }
